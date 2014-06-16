@@ -6,6 +6,21 @@
 # A copy of this license should have been provided with this
 # software. If not see
 # <http://www.freebsd.org/copyright/freebsd-license.html>.
+"""
+Naoko bot
+
+Usage: 
+    naoko.py [options]
+
+Options: 
+    --room=ROOM         Room to join [default: fullmoviesonyoutube]
+    --name=NICK         Bot nickname [default: kbot]
+    --pw=PASS           Bot password 
+    --domain=DOMAIN     cyTube domain [default: cytu.be]
+    --io_url=URL        Default io_url [default: http://sea.cytu.be:8880]
+    --spam_interval=N   Minimum time between messages in seconds [default: 0.5]
+    --debug             Turn on debugging
+"""
 
 import ConfigParser
 import json
@@ -21,6 +36,7 @@ import threading
 import time
 import urllib2
 from  collections      import  namedtuple, deque
+from  docopt           import docopt
 from  datetime         import  datetime
 from  multiprocessing  import  Pipe, Process
 from  settings         import  *
@@ -44,6 +60,18 @@ CytubeUser = namedtuple("CytubeUser",
 class Object(object):
     pass
 
+class NaokoConfig: 
+    def __init__(self, args, configfile = "naoko.conf"): 
+        config = ConfigParser.RawConfigParser()
+        config.read(configfile)
+        self.room           = args['--room']
+        self.name           = args['--name']
+        self.pw             = args['--pw'] or config.get("naoko", "pass")
+        self.domain         = args['--domain']
+        self.default_io_url = args['--io_url']
+        self.spam_interval  = float(args['--spam_interval'])
+
+
 # Synchtube  "client" built on top of a socket.io socket
 # Synchtube messages are generally of the form:
 #   ["TYPE", DATA]
@@ -54,7 +82,7 @@ class Object(object):
 # second is uid, third is whether or not client is authenticated
 # fourth is avatar type, and so on.
 class Naoko(object):
-    def __init__(self, pipe=None):
+    def __init__(self, config, pipe=None):
         # Initialize all loggers
         self.logger = logging.getLogger("stclient")
         self.logger.setLevel(LOG_LEVEL)
@@ -68,7 +96,7 @@ class Naoko(object):
         self.closeLock = threading.Lock()
         self.closing = threading.Event()
 
-        self._getConfig()
+        self.config = config 
 
         self.st_message_handlers = {
             "chatMsg"             :  self.chat,
@@ -104,7 +132,7 @@ class Naoko(object):
             "setAFK"              :  self.ignore,
         }
         self.command_handlers = {
-            "help"    :  self.command_help,
+            "halp"    :  self.command_help,
             "giphy"   :  self.command_giphy,
             "giphyr"  :  self.command_giphyrand,
         }
@@ -116,12 +144,12 @@ class Naoko(object):
         try:
             io_url = urllib2.urlopen(
                 "http://%s/assets/js/iourl.js" %
-                (self.domain)).read()
+                (self.config.domain)).read()
             self.io_url = io_url[io_url.rfind("var IO_URL"):].split('"')[1]
         except Exception:
             self.logger.warning(
                 "Unable to load iourl.js, using default io_url if available.")
-            self.io_url = self.default_io_url
+            self.io_url = self.config.default_io_url
 
         # Assume HTTP because Naoko can't handle other protocols anyway
         socket_ip, socket_port = self.io_url[7:].split(':')
@@ -151,16 +179,14 @@ class Naoko(object):
         # Set a default selfUser with admin permissions, it will be updated
         # later
         self.selfUser = CytubeUser(
-            self.name, 3, False, {
-                "afk": False}, {
-                "text": "", "image": ""}, deque(
-                maxlen=3))
+            self.config.name, 3, False, {"afk": False}, 
+                { "text": "", "image": ""}, deque(maxlen=3))
 
         # Connect to the room
-        self.send("joinChannel", {"name": self.room})
+        self.send("joinChannel", {"name": self.config.room})
 
         # Log In
-        self.send("login", {"name": self.name, "pw": self.pw})
+        self.send("login", {"name": self.config.name, "pw": self.config.pw})
 
         # Start the threads that are required for all normal operation
         self.chatthread = threading.Thread(target=Naoko._chatloop, args=[self])
@@ -248,7 +274,7 @@ class Naoko(object):
                 continue
             if self.st_queue:
                 self.sendChat(self.st_queue.popleft())
-            time.sleep(self.spam_interval)
+            time.sleep(self.config.spam_interval)
         else:
 
             self.logger.info("Chat Loop Closed")
@@ -269,8 +295,10 @@ class Naoko(object):
         r = requests.get(url_template.format(data))
         if r.status_code != 200: return
         self.logger.debug("giphy: json=%s", r.json()) 
-        image = r.json()['data'][0]['images']['fixed_height']['url']
-        self.enqueueMsg("{}.pic".format(image))
+	json = r.json()
+	if len(json['data']) > 0:
+	    image = r.json()['data'][0]['images']['fixed_height']['url']
+	    self.enqueueMsg("{}.pic".format(image))
 
     def command_giphyrand(self, command, user, data):
         self.logger.debug("giphy: query=%s", data) 
@@ -355,7 +383,7 @@ class Naoko(object):
         self.sendChat("/afk")
 
     def addUser(self, tag, data, isSelf=False):
-        self._addUser(data, data["name"] == self.name)
+        self._addUser(data, data["name"] == self.config.name)
 
     def users(self, tag, data):
         for u in data:
@@ -458,23 +486,6 @@ class Naoko(object):
 
         return output
 
-    def _getConfig(self):
-        config = ConfigParser.RawConfigParser()
-        config.read("naoko.conf")
-        self.room = config.get("naoko", "room")
-        self.room_pw = config.get("naoko", "room_pw")
-        self.name = config.get("naoko", "nick")
-        self.pw = config.get("naoko", "pass")
-        self.domain = config.get("naoko", "domain")
-        self.default_io_url = config.get("naoko", "default_io_url")
-        self.spam_interval = float(config.get("naoko", "spam_interval"))
-        self.skip_interval = float(config.get("naoko", "skip_interval"))
-        self.server = config.get("naoko", "irc_server")
-        self.channel = config.get("naoko", "irc_channel")
-        self.irc_nick = config.get("naoko", "irc_nick")
-        self.ircpw = config.get("naoko", "irc_pass")
-        self.dbfile = config.get("naoko", "db_file")
-
 
 
 
@@ -508,17 +519,17 @@ class throttle:
         self.last_call = time.time()
         self.fn(*args, **kwargs)
 
-def spawn(script):
+def spawn(script, config):
     (pipe_in, pipe_out) = Pipe(False)
-    p = Process(target=script, args=(pipe_out,))
+    p = Process(target=script, args=(config,pipe_out,))
     p.daemon = True  
     p.start()
     pipe_out.close()
     return (pipe_in, p)
 
 @throttle
-def run(script):
-    (child_pipe, child) = spawn (script)
+def run(script, config):
+    (child_pipe, child) = spawn(script, config)
     restarting = False
     print "[%s] Forked off (%d)\n" % (name, child.pid)
     try:
@@ -541,9 +552,20 @@ def run(script):
     finally:
         child.terminate()
 
-if __name__ == '__main__':
+def start(args): 
+    config = NaokoConfig(args)
+
     try:
         while True:
-            run(Naoko)
+            run(Naoko, config)
     except KeyboardInterrupt:
         print "\n Shutting Down"
+
+if __name__ == '__main__':
+    args = docopt(__doc__, version="cleanbot")
+    if args['--debug']:
+        logger.setLevel(logging.DEBUG)
+        LOG_LEVEL = logging.DEBUG
+    start(args)
+
+
