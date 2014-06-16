@@ -7,25 +7,25 @@
 # software. If not see
 # <http://www.freebsd.org/copyright/freebsd-license.html>.
 
-import hashlib
-import itertools
+import ConfigParser
 import json
 import logging
-import random
-import sched
-import time
 import math
-import socket
-import struct
-import threading
+import os
+import random
 import re
-from urllib2 import Request, urlopen
-from collections import namedtuple, deque
-import ConfigParser
-from datetime import datetime
+import requests
+import socket
+import sys
+import threading
+import time
+import urllib2
+from  collections      import  namedtuple, deque
+from  datetime         import  datetime
+from  multiprocessing  import  Pipe, Process
+from  settings         import  *
 
-from settings import *
-from lib.sioclient import SocketIOClient
+import sioclient
 
 # Package arguments for later use.
 # Due to the way python handles scopes this needs to be used to avoid race
@@ -97,8 +97,9 @@ class Naoko(object):
             "setAFK"              :  self.ignore,
         }
         self.command_handlers = {
-            "help"   :  self.command_help,
-            "giphy"  :  self.command_giphy,
+            "help"    :  self.command_help,
+            "giphy"   :  self.command_giphy,
+            "giphyr"  :  self.command_giphyrand,
         }
         self.room_info = {}
         self.doneInit = False
@@ -106,7 +107,7 @@ class Naoko(object):
 
         self.logger.debug("Retrieving IO_URL")
         try:
-            io_url = urlopen(
+            io_url = urllib2.urlopen(
                 "http://%s/assets/js/iourl.js" %
                 (self.domain)).read()
             self.io_url = io_url[io_url.rfind("var IO_URL"):].split('"')[1]
@@ -119,7 +120,7 @@ class Naoko(object):
         socket_ip, socket_port = self.io_url[7:].split(':')
 
         self.logger.info("Starting SocketIO Client")
-        self.client = SocketIOClient(
+        self.client = sioclient.SocketIOClient(
             socket_ip, int(socket_port), "socket.io", {
                 "t": int(
                     round(
@@ -247,25 +248,35 @@ class Naoko(object):
 
     def command_help(self, command, user, data):
         self.enqueueMsg(
-            "I only do this out of pity."
-            "https://raw.github.com/Suwako/cyNaoko/master/commands.txt")
+                "I know the following commands: " +  
+                ", ".join(self.command_handlers.keys()))
 
     def command_giphy(self, command, user, data):
         self.logger.debug("giphy: query=%s", data) 
-        import requests
-        import random
-        GIPHY_TOP_N = 5
+        if not data: 
+            self.command_giphyrand(command, user, data)
+            return 
+
         url_template = "http://api.giphy.com/v1/gifs/search?q={}&api_key=dc6zaTOxFJmzC"
 
         r = requests.get(url_template.format(data))
         if r.status_code != 200: return
         self.logger.debug("giphy: json=%s", r.json()) 
+        image = r.json()['data'][0]['images']['fixed_height']['url']
+        self.enqueueMsg("{}.pic".format(image))
 
-        n_images = len(r.json()['data'])
-        n_max    = min(GIPHY_TOP_N, n_images)
-        i        = random.randint(1,  n_max)
-        image = r.json()['data'][i-1]['images']['fixed_height']['url']
-        self.enqueueMsg("{}.pic [{}/{}]".format(image, i, n_max))
+    def command_giphyrand(self, command, user, data):
+        self.logger.debug("giphy: query=%s", data) 
+        url = "http://api.giphy.com/v1/gifs/random?api_key=dc6zaTOxFJmzC"
+
+        if data: 
+            url = url + "&tag={}".format(data)
+        r = requests.get(url)
+        if r.status_code != 200: return
+
+        image = r.json()['data']['image_url']
+        self.logger.debug("giphy: imageurl=%s json=%s", image, r.json()) 
+        self.enqueueMsg("{}.pic".format(image))
 
     # Handle chat commands from Synchtube
     def chatCommand(self, user, msg):
@@ -461,20 +472,13 @@ class Naoko(object):
 
 
 
-# The supervisor process that is responsible for starting and restarting Naoko
-import os, sys, time
-import signal
-import threading
-from multiprocessing import Pipe, Process
 name = "Launcher"
-
-# Don't fork too often
-MIN_DUR = 2.5
-
 restarting = False
+MIN_DUR = 2.5    # Don't fork too often
 
 # Set up logging
-logging.basicConfig(format='%(name)-10s:%(levelname)-8s - %(message)s', stream=sys.__stderr__)
+logging.basicConfig(format='%(name)-10s:%(levelname)-8s - %(message)s', 
+    stream=sys.__stderr__)
 logger = logging.getLogger("socket.io client")
 logger.setLevel(LOG_LEVEL)
 (info, debug, warning, error) = (logger.info, logger.debug, logger.warning, logger.error)
@@ -500,7 +504,8 @@ class throttle:
 def spawn(script):
     (pipe_in, pipe_out) = Pipe(False)
     p = Process(target=script, args=(pipe_out,))
-    p.daemon = True # If the main process crashes for any reason then kill the child process
+    p.daemon = True      # If the main process crashes for any reason then kill
+                         # the child process
     p.start()
     pipe_out.close()
     return (pipe_in, p)

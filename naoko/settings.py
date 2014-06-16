@@ -8,7 +8,7 @@ TIMEOUT = 35
 
 # The logging level, choose between logging.DEBUG, logging.INFO, logging.WARNING, and logging.ERROR.
 # It is recommended to use a setting of WARNING or lower.
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 
 # Default wait when an unknown video is playing in seconds.
 DEFAULT_WAIT = 3 * 60 * 60
