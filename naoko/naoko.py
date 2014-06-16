@@ -75,6 +75,13 @@ class Naoko(object):
             "addUser"             :  self.addUser,
             "login"               :  self.login,
             "userlist"            :  self.users,
+            "setPermissions"      :  self.ignore,
+            "setEmoteList"        :  self.ignore,
+            "setMotd"             :  self.ignore,
+            "emoteList"           :  self.ignore,
+            "drinkCount"          :  self.ignore,
+            "channelOpts"         :  self.ignore,
+            "channelCSSJS"        :  self.ignore,
             "userLeave"           :  self.ignore,
             "setCurrent"          :  self.ignore,
             "setPlaylistMeta"     :  self.ignore,
@@ -504,15 +511,13 @@ class throttle:
 def spawn(script):
     (pipe_in, pipe_out) = Pipe(False)
     p = Process(target=script, args=(pipe_out,))
-    p.daemon = True      # If the main process crashes for any reason then kill
-                         # the child process
+    p.daemon = True  
     p.start()
     pipe_out.close()
     return (pipe_in, p)
 
 @throttle
 def run(script):
-    global child
     (child_pipe, child) = spawn (script)
     restarting = False
     print "[%s] Forked off (%d)\n" % (name, child.pid)
