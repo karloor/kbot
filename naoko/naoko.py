@@ -135,6 +135,7 @@ class Naoko(object):
             "halp"    :  self.command_help,
             "giphy"   :  self.command_giphy,
             "giphyr"  :  self.command_giphyrand,
+            "omdb"    :  self.command_omdb,
         }
         self.room_info = {}
         self.doneInit = False
@@ -278,6 +279,50 @@ class Naoko(object):
         else:
 
             self.logger.info("Chat Loop Closed")
+
+    def command_omdb(self, command, user, data):
+        properties = ["Title", "Year", "Rated", "Released", "Runtime", "Genre",
+                "Director", "Writer", "Actors", "Plot", "Language", "Country",
+                "Awards", "Poster", "Metascore", "imdbRating", "imdbVotes",
+                "imdbID", "Type"]
+        
+        if not data: data = "help"
+
+        args = data.split()
+        prop, title = args[0], args[1:]
+        friendly_title = " ".join(title)
+
+        if prop == 'help': 
+            self.enqueueMsg(
+            "Usage: $omdb <property> <title>\n" 
+            "      e.g $omdb actors total recall \n"
+            "<property> can be: " + ", ".join(properties))
+            return
+
+        prop = prop.encode('ascii', 'ignore') # ouch
+        prop = unicode(prop[0].upper() + prop.lower()[1:]) # title case
+        if prop not in properties: return
+
+        url_base = 'http://www.omdbapi.com/?t={}'
+        if title and re.match(r'&#40;\d\d\d\d&#41;', title[-1]):
+            m        = re.match(r'&#40;(\d\d\d\d)&#41;', title[-1])
+            year     = m.group(1)
+            url_base = 'http://www.omdbapi.com/?y='+year+'&t={}'
+            title    = title[:-1]
+            friendly_title = " ".join(title) + " (" + year + ")"
+
+        title = " ".join(title)
+        r = requests.get(url_base.format(title))
+        if r.status_code != 200: return
+
+        try: 
+            info = r.json()
+        except: 
+            return
+        if prop not in info: return
+
+        self.enqueueMsg('Open Media Database search for "{}":'
+            '{} = {} '.format(friendly_title, prop, info[prop]))
 
     def command_help(self, command, user, data):
         self.enqueueMsg(
