@@ -42,6 +42,7 @@ from  multiprocessing  import  Pipe, Process
 from  settings         import  *
 
 import sioclient
+import eliza
 
 # Package arguments for later use.
 # Due to the way python handles scopes this needs to be used to avoid race
@@ -97,6 +98,7 @@ class Naoko(object):
         self.closing = threading.Event()
 
         self.config = config 
+        self.therapist = eliza.eliza()
 
         self.st_message_handlers = {
             "chatMsg"             :  self.chat,
@@ -136,6 +138,7 @@ class Naoko(object):
             "giphy"   :  self.command_giphy,
             "giphyr"  :  self.command_giphyrand,
             "omdb"    :  self.command_omdb,
+            "blab"    :  self.command_chat,
         }
         self.room_info = {}
         self.doneInit = False
@@ -326,8 +329,12 @@ class Naoko(object):
 
     def command_help(self, command, user, data):
         self.enqueueMsg(
-                "I know the following commands: " +  
+                "Well, I can tell you that I know the following commands: " +  
                 ", ".join(self.command_handlers.keys()))
+
+    def command_chat(self, command, user, data):
+        self.enqueueMsg("[{}] {}".format(user.name,
+            self.therapist.respond(data)))
 
     def command_giphy(self, command, user, data):
         self.logger.debug("giphy: query=%s", data) 
@@ -340,10 +347,9 @@ class Naoko(object):
         r = requests.get(url_template.format(data))
         if r.status_code != 200: return
         self.logger.debug("giphy: json=%s", r.json()) 
-	json = r.json()
-	if len(json['data']) > 0:
-	    image = r.json()['data'][0]['images']['fixed_height']['url']
-	    self.enqueueMsg("{}.pic".format(image))
+        if len(r.json()['data']) > 0: 
+            image = r.json()['data'][0]['images']['fixed_height']['url']
+            self.enqueueMsg("{}.pic".format(image))
 
     def command_giphyrand(self, command, user, data):
         self.logger.debug("giphy: query=%s", data) 
@@ -389,6 +395,7 @@ class Naoko(object):
         self.st_queue.append(msg)
 
     def close(self):
+        self.chatlog.close()
         self.closeLock.acquire()
         if self.closing.isSet():
             self.closeLock.release()
