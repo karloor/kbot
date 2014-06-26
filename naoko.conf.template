@@ -1,9 +1,7 @@
 [naoko]
-room    =                                   # CyTube room to join
-room_pw =                                   # Password for the room (can be blank)
-nick    =                                   # Nickname for the bot
-pass    =                                   # Password for the bot
-domain  = cytu.be                           # The domain for CyTube
-default_io_url = http://sea.cytu.be:8880    # 
-spam_interval  = 0.5                        # Min time between messages (in seconds)
-
+room    =                          ; CyTube room to join
+room_pw =                          ; Password for the room (can be blank)
+name    =                          ; Nickname for the bot
+pass    =                          ; Password for the bot
+domain  = cytu.be                  ; The domain for CyTube
+io_url  = http://sea.cytu.be:8880  ; 
