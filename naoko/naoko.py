@@ -18,7 +18,7 @@ Options:
     --pw=PASS             Bot password 
     --domain=DOMAIN       cyTube domain 
     --io_url=URL          Default io_url
-    --spam_interval=N     Minimum time between messages in seconds [default: 5]
+    --spam_interval=N     Minimum time between messages in seconds [default: 2]
     --max_queued_msgs=N   Max queued messages [default: 5]
     --debug               Turn on debugging
     --config=FILE         Config file [default: naoko.conf]
@@ -45,6 +45,7 @@ from  settings         import  *
 
 import sioclient
 import eliza
+import hangman
 
 # Package arguments for later use.
 # Due to the way python handles scopes this needs to be used to avoid race
@@ -101,6 +102,7 @@ class Naoko(object):
 
         self.config = config 
         self.therapist = eliza.eliza()
+        self.hangman = hangman.Game()
 
         self.st_message_handlers = {
             "chatMsg"             :  self.chat,
@@ -141,6 +143,8 @@ class Naoko(object):
             "giphyr"  :  self.command_giphyrand,
             "omdb"    :  self.command_omdb,
             "blab"    :  self.command_chat,
+            "hangman" :  self.command_hangman,
+            "h"       :  self.command_hangman_answer,
         }
         self.room_info = {}
         self.doneInit = False
@@ -367,6 +371,37 @@ class Naoko(object):
         image = r.json()['data']['image_url']
         self.logger.debug("giphy: imageurl=%s json=%s", image, r.json()) 
         self.enqueueMsg("{}.pic".format(image))
+
+    def command_hangman(self, command, user, data): 
+        try: 
+            word = self.hangman.start_game()
+            self.enqueueMsg(":pink: word to guess: {}".format(
+                self.hangman.print_guessed()))
+        except hangman.GameException, e: 
+            self.enqueueMsg(":pink: [{}] {}".format(user.name, e.message))
+            
+    def command_hangman_answer(self, command, user, letter): 
+        if not letter: return
+
+        logger.debug("hangman guess = " + letter)
+        try: 
+            self.hangman.guess(letter)
+            if self.hangman.has_won(): 
+                self.enqueueMsg(":pink: [{}] you win! The word is: {}".format(
+                    user.name, self.hangman.print_guessed()))
+                self.hangman.reset_game()
+            elif self.hangman.has_lost(): 
+                self.enqueueMsg(":pink: Game over. The word was: {}".format(
+                    self.hangman.word))
+                self.hangman.reset_game()
+            else: 
+                self.enqueueMsg(":pink: Word: {}    Guesses [{}/{}]: {} ".format(
+                    self.hangman.print_guessed(), 
+                    len(self.hangman.guesses),
+                    self.hangman.max_guesses,
+                    ",".join(sorted(self.hangman.guesses))  ))
+        except hangman.GameException, e: 
+            self.enqueueMsg(":pink: [{}] {}".format(user.name, e.message))
 
     # Handle chat commands from Synchtube
     def chatCommand(self, user, msg):
