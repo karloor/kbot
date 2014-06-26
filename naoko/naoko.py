@@ -13,13 +13,14 @@ Usage:
     naoko.py [options]
 
 Options: 
-    --room=ROOM         Room to join [default: fullmoviesonyoutube]
-    --name=NICK         Bot nickname [default: kbot]
-    --pw=PASS           Bot password 
-    --domain=DOMAIN     cyTube domain [default: cytu.be]
-    --io_url=URL        Default io_url [default: http://sea.cytu.be:8880]
-    --spam_interval=N   Minimum time between messages in seconds [default: 0.5]
-    --debug             Turn on debugging
+    --room=ROOM           Room to join [default: fullmoviesonyoutube]
+    --name=NICK           Bot nickname [default: kbot]
+    --pw=PASS             Bot password 
+    --domain=DOMAIN       cyTube domain [default: cytu.be]
+    --io_url=URL          Default io_url [default: http://sea.cytu.be:8880]
+    --spam_interval=N     Minimum time between messages in seconds [default: 5]
+    --max_queued_msgs=N   Max queued messages [default: 5]
+    --debug               Turn on debugging
 """
 
 import ConfigParser
@@ -65,13 +66,13 @@ class NaokoConfig:
     def __init__(self, args, configfile = "naoko.conf"): 
         config = ConfigParser.RawConfigParser()
         config.read(configfile)
-        self.room           = args['--room']
-        self.name           = args['--name']
-        self.pw             = args['--pw'] or config.get("naoko", "pass")
-        self.domain         = args['--domain']
-        self.default_io_url = args['--io_url']
-        self.spam_interval  = float(args['--spam_interval'])
-
+        self.room            = args['--room']
+        self.name            = args['--name']
+        self.pw              = args['--pw'] or config.get("naoko", "pass")
+        self.domain          = args['--domain']
+        self.default_io_url  = args['--io_url']
+        self.spam_interval   = float(args['--spam_interval'])
+    	self.max_queued_msgs = float(args['--max_queued_msgs'])
 
 # Synchtube  "client" built on top of a socket.io socket
 # Synchtube messages are generally of the form:
@@ -272,8 +273,10 @@ class Naoko(object):
         while not self.closing.isSet():
             # Detect when far too many messages are being sent and clear the
             # queue
-            if len(self.st_queue) > 20:
-                time.sleep(5)
+            if len(self.st_queue) > self.config.max_queued_msgs:
+		print "/afk"
+                self.sendChat('/afk')
+                time.sleep(self.config.spam_interval * 3)
                 self.st_queue.clear()
                 continue
             if self.st_queue:
