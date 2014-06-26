@@ -13,11 +13,11 @@ Usage:
     naoko.py [options]
 
 Options: 
-    --room=ROOM           Room to join [default: fullmoviesonyoutube]
-    --name=NICK           Bot nickname [default: kbot]
+    --room=ROOM           Room to join 
+    --name=NICK           Bot nickname 
     --pw=PASS             Bot password 
-    --domain=DOMAIN       cyTube domain [default: cytu.be]
-    --io_url=URL          Default io_url [default: http://sea.cytu.be:8880]
+    --domain=DOMAIN       cyTube domain 
+    --io_url=URL          Default io_url
     --spam_interval=N     Minimum time between messages in seconds [default: 5]
     --max_queued_msgs=N   Max queued messages [default: 5]
     --debug               Turn on debugging
@@ -66,11 +66,11 @@ class NaokoConfig:
     def __init__(self, args, configfile = "naoko.conf"): 
         config = ConfigParser.RawConfigParser()
         config.read(configfile)
-        self.room            = args['--room']
-        self.name            = args['--name']
-        self.pw              = args['--pw'] or config.get("naoko", "pass")
-        self.domain          = args['--domain']
-        self.default_io_url  = args['--io_url']
+        self.room            = args['--room']    or config.get("naoko", "room")
+        self.name            = args['--name']    or config.get("naoko", "name")
+        self.pw              = args['--pw']      or config.get("naoko", "pass")
+        self.domain          = args['--domain']  or config.get("naoko", "domain")
+        self.default_io_url  = args['--io_url']  or config.get("naoko", "io_url")
         self.spam_interval   = float(args['--spam_interval'])
     	self.max_queued_msgs = float(args['--max_queued_msgs'])
 
