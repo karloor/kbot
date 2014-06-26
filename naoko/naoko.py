@@ -21,6 +21,7 @@ Options:
     --spam_interval=N     Minimum time between messages in seconds [default: 5]
     --max_queued_msgs=N   Max queued messages [default: 5]
     --debug               Turn on debugging
+    --config=FILE         Config file [default: naoko.conf]
 """
 
 import ConfigParser
@@ -63,9 +64,9 @@ class Object(object):
     pass
 
 class NaokoConfig: 
-    def __init__(self, args, configfile = "naoko.conf"): 
+    def __init__(self, args): 
         config = ConfigParser.RawConfigParser()
-        config.read(configfile)
+        config.read(args['--config'])
         self.room            = args['--room']    or config.get("naoko", "room")
         self.name            = args['--name']    or config.get("naoko", "name")
         self.pw              = args['--pw']      or config.get("naoko", "pass")
