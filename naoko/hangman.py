@@ -48,10 +48,10 @@ class Game:
     def guess(self, guess): 
         guess = guess.decode('ascii','ignore').lower().strip()
         if not self.has_started():
-            raise GameException("No game in progress.")
+            raise GameException("No game going at the moment.")
 
         if not set(guess).issubset(set('abcdefghijklmnopqrstuvwxyz')):
-            raise GameException("Err... not a valid guess. Only letters.")
+            raise GameException("Err... you can guess only letters.")
 
         if len(guess) > 1: 
             if guess == self.word: 
@@ -71,6 +71,6 @@ class Game:
             if i in self.guesses:
                 str+=i
             else:
-                str+="#"
+                str+="-"
         return str.strip()
             
