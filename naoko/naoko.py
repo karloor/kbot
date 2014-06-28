@@ -375,10 +375,11 @@ class Naoko(object):
     def command_hangman(self, command, user, data): 
         try: 
             word = self.hangman.start_game()
-            self.enqueueMsg(":pink: word to guess: {}".format(
+            self.enqueueMsg(":pink: word to guess: `{}`".format(
                 self.hangman.print_guessed()))
         except hangman.GameException, e: 
-            self.enqueueMsg(":pink: [{}] {}".format(user.name, e.message))
+            self.enqueueMsg(":pink: word to guess: `{}`".format(
+                self.hangman.print_guessed()))
             
     def command_hangman_answer(self, command, user, letter): 
         if not letter: return
@@ -387,15 +388,15 @@ class Naoko(object):
         try: 
             self.hangman.guess(letter)
             if self.hangman.has_won(): 
-                self.enqueueMsg(":pink: [{}] you win! The word is: {}".format(
+                self.enqueueMsg(":pink: [{}] you win! The word is: `{}`".format(
                     user.name, self.hangman.print_guessed()))
                 self.hangman.reset_game()
             elif self.hangman.has_lost(): 
-                self.enqueueMsg(":pink: Game over. The word was: {}".format(
+                self.enqueueMsg(":pink: Game over. The word was: `{}`".format(
                     self.hangman.word))
                 self.hangman.reset_game()
             else: 
-                self.enqueueMsg(":pink: Word: {}    Guesses [{}/{}]: {} ".format(
+                self.enqueueMsg(":pink: Word: `{}`    Guesses [{}/{}]: {} ".format(
                     self.hangman.print_guessed(), 
                     len(self.hangman.guesses),
                     self.hangman.max_guesses,
