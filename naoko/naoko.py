@@ -46,6 +46,7 @@ from  settings         import  *
 import sioclient
 import eliza
 import hangman
+import dizzbotdb
 
 # Package arguments for later use.
 # Due to the way python handles scopes this needs to be used to avoid race
@@ -138,13 +139,14 @@ class Naoko(object):
             "setAFK"              :  self.ignore,
         }
         self.command_handlers = {
-            "halp"    :  self.command_help,
-            "giphy"   :  self.command_giphy,
-            "giphyr"  :  self.command_giphyrand,
-            "omdb"    :  self.command_omdb,
-            "blab"    :  self.command_chat,
-            "hangman" :  self.command_hangman,
-            "h"       :  self.command_hangman_answer,
+            "halp"     :  self.command_help,
+            "giphy"    :  self.command_giphy,
+            "giphyr"   :  self.command_giphyrand,
+            "omdb"     :  self.command_omdb,
+            "blab"     :  self.command_chat,
+            "hangman"  :  self.command_hangman,
+            "h"        :  self.command_hangman_answer,
+            "showperds":  self.command_showperds,
         }
         self.room_info = {}
         self.doneInit = False
@@ -381,15 +383,23 @@ class Naoko(object):
             self.enqueueMsg(":pink: word to guess: `{}`".format(
                 self.hangman.print_guessed()))
             
-    def command_hangman_answer(self, command, user, letter): 
-        if not letter: return
+    def command_hangman_answer(self, command, user, guess): 
+        GUESS_COST= 1
+        MIN_WIN   = GUESS_COST + 1  
+        if not guess: return
 
-        logger.debug("hangman guess = " + letter)
+        logger.debug("hangman guess = " + guess)
         try: 
-            self.hangman.guess(letter)
+            if not self.hangman.is_guess_correct(guess): 
+                dizzbotdb.debit_perds(user, GUESS_COST)
+		
+            self.hangman.guess(guess)
+
             if self.hangman.has_won(): 
-                self.enqueueMsg(":pink: [{}] you win! The word is: `{}`".format(
-                    user.name, self.hangman.print_guessed()))
+                perds_won = min(len(self.hangman.guesses), MIN_WIN)
+                dizzbotdb.credit_perds(user, perds_won)
+                self.enqueueMsg(":pink: [{}] you win {} perds! The word was: `{}`".format(
+                    user.name, perds_won, self.hangman.print_guessed()))
                 self.hangman.reset_game()
             elif self.hangman.has_lost(): 
                 self.enqueueMsg(":pink: Game over. The word was: `{}`".format(
@@ -403,7 +413,15 @@ class Naoko(object):
                     ",".join(sorted(self.hangman.guesses))  ))
         except hangman.GameException, e: 
             self.enqueueMsg(":pink: [{}] {}".format(user.name, e.message))
+        except dizzbotdb.NotEnoughPerdsException, e: 
+            self.enqueueMsg(":pink: [{}] Takes 1 perd to guess.".format(user.name))
 
+    def command_showperds(self, command, user, data): 
+        #if user != 'karloor': return
+        self.enqueueMsg(":pink: [{}] you have {} perds".format(
+            user.name, 
+            dizzbotdb.debit_perds(user, 0)))
+        
     # Handle chat commands from Synchtube
     def chatCommand(self, user, msg):
         if not msg or msg[0] != '$': return
@@ -661,3 +679,4 @@ if __name__ == '__main__':
     start(args)
 
 
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4

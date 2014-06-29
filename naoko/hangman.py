@@ -45,13 +45,21 @@ class Game:
                             len(set(self.word)) + self.guess_margin)
         return self.word
 
-    def guess(self, guess): 
+    def check_guess(self, guess): 
         guess = guess.decode('ascii','ignore').lower().strip()
         if not self.has_started():
             raise GameException("No game going at the moment.")
 
         if not set(guess).issubset(set('abcdefghijklmnopqrstuvwxyz')):
             raise GameException("Err... you can guess only letters.")
+        return guess
+
+    def is_guess_correct(self, guess): 
+        guess = self.check_guess(guess)
+        return guess in self.word or guess == self.word
+        
+    def guess(self, guess): 
+        guess = self.check_guess(guess)
 
         if len(guess) > 1: 
             if guess == self.word: 
