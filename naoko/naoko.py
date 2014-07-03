@@ -348,13 +348,18 @@ class Naoko(object):
 
         url_template = "http://api.giphy.com/v1/gifs/search?q={}&api_key=dc6zaTOxFJmzC"
 
-        r = requests.get(url_template.format(data))
-        if r.status_code != 200: return
-        self.logger.debug("giphy: json=%s", r.json()) 
-        if len(r.json()['data']) > 0: 
-            image = r.json()['data'][0]['images']['fixed_height']['url']
-            self.enqueueMsg("{}.pic".format(image))
-
+        try:
+            r = requests.get(url_template.format(data))
+            if r.status_code != 200: return
+            self.logger.debug("giphy: json=%s", r.json()) 
+            if len(r.json()['data']) > 0: 
+                image = r.json()['data'][0]['images']['fixed_height']['url']
+                self.enqueueMsg("{}.pic".format(image))
+            else:
+                self.enqueueMsg(":pink: sorry, {}, nothing from giphy for: '{}'".format(user.name,data))
+        except: 
+            self.enqueueMsg(":pink: sorry, {}, nothing from giphy for: '{}'".format(user.name,data))
+            
     def command_giphyrand(self, command, user, data):
         self.logger.debug("giphy: query=%s", data) 
         url = "http://api.giphy.com/v1/gifs/random?api_key=dc6zaTOxFJmzC"
