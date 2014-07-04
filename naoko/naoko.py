@@ -107,6 +107,9 @@ class Naoko(object):
             "addUser"             :  self.addUser,
             "login"               :  self.login,
             "userlist"            :  self.users,
+            "pm"                  :  self.private_message,
+            "announcement"        :  self.ignore,
+            "voteskip"            :  self.ignore,
             "setPermissions"      :  self.ignore,
             "setEmoteList"        :  self.ignore,
             "setMotd"             :  self.ignore,
@@ -461,6 +464,18 @@ class Naoko(object):
         if not data["meta"].get("addClass"):
             self.chatCommand(user, msg)
 
+    def private_message(self, tag, data):
+        if not self.doneInit: return
+        if not data["username"] in self.userlist: return
+
+        user = self.userlist[data["username"]]
+        msg = self._fixChat(data["msg"])
+        self.chat_logger.debug("%s: %r %r", user.name, msg, data)
+        self.send("pm", {
+            "msg": msg, 
+            "meta": {},
+            "to": user.name})
+
     def _addUser(self, u_dict, isSelf=False):
         userinfo = u_dict.copy()
         #userinfo['nick'] = self.filterString(userinfo['nick'], True)[1]
@@ -630,3 +645,4 @@ if __name__ == '__main__':
     start(args)
 
 
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
