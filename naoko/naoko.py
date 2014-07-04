@@ -108,6 +108,7 @@ class Naoko(object):
             "login"               :  self.login,
             "userlist"            :  self.users,
             "pm"                  :  self.private_message,
+            "errorMsg"            :  self.ignore,
             "announcement"        :  self.ignore,
             "voteskip"            :  self.ignore,
             "setPermissions"      :  self.ignore,
@@ -472,7 +473,7 @@ class Naoko(object):
         msg = self._fixChat(data["msg"])
         self.chat_logger.debug("%s: %r %r", user.name, msg, data)
         self.send("pm", {
-            "msg": msg, 
+            "msg": self.therapist.respond(msg), 
             "meta": {},
             "to": user.name})
 
@@ -559,6 +560,7 @@ class Naoko(object):
         output = output.replace("&lt;", "<")
         output = output.replace("&quot;", "\"")
         output = output.replace("&amp;", "&")
+        output = output.replace("&#39;", "'")
 
         return output
 
