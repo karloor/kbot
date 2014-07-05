@@ -18,7 +18,7 @@ Options:
     --pw=PASS             Bot password 
     --domain=DOMAIN       cyTube domain 
     --io_url=URL          Default io_url
-    --spam_interval=N     Minimum time between messages in seconds [default: 5]
+    --spam_interval=N     Minimum time between messages in seconds [default: 1]
     --max_queued_msgs=N   Max queued messages [default: 5]
     --debug               Turn on debugging
     --config=FILE         Config file [default: naoko.conf]
@@ -279,16 +279,12 @@ class Naoko(object):
             # Detect when far too many messages are being sent and clear the
             # queue
             if len(self.st_queue) > self.config.max_queued_msgs:
-		print "/afk"
                 self.sendChat('/afk')
                 time.sleep(self.config.spam_interval * 3)
-                self.st_queue.clear()
-                continue
             if self.st_queue:
                 self.sendChat(self.st_queue.popleft())
             time.sleep(self.config.spam_interval)
         else:
-
             self.logger.info("Chat Loop Closed")
 
     def command_omdb(self, command, user, data):
